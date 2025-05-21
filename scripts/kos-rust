@@ -41,8 +41,8 @@ case "$1" in
         if [[ "$CONTAINER_ENGINE" == "podman" ]]; then
             BUILD_EXT_ARGS="--format docker"
         fi
-        echo "Attempting to build dreamcast-rs image..."
-        ${CONTAINER_ENGINE} build $BUILD_EXT_ARGS -t $IMAGE_TAG -f Dockerfile
+        echo "Building dreamcast-rs image..."
+        ${CONTAINER_ENGINE} build $BUILD_EXT_ARGS -t $IMAGE_TAG -f $(dirname "$(readlink -f "$0")")/../Dockerfile
         ;;
     "pull-image" )
         ${CONTAINER_ENGINE} pull $IMAGE_TAG
