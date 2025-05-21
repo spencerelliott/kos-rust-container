@@ -1,0 +1,55 @@
+#!/bin/bash
+# Rust for KallistiOS/Dreamcast
+# Copyright (C) 2025 Spencer Elliott
+# https://dreamcast.rs/
+
+# The name of the image to compile or pull
+IMAGE_TAG="dreamcast-rs/dreamcast-rs"
+
+# Choose from podman or docker
+CONTAINER_ENGINE=podman
+
+# Add kos-ports from the host machine, if the environment variable path exists
+KOS_PORTS_FOLDER_FLAG=
+if [[ -n "$KOS_RUST_PORTS_DIR" ]]; then
+    KOS_PORTS_FOLDER_FLAG="-v $KOS_RUST_PORTS_DIR:/opt/toolchains/dc/rust/kos-ports"
+    #echo "Using kos-ports folder $KOS_RUST_PORTS_DIR"
+fi
+
+# Mount this folder in the image
+CWD_FLAG="-v `pwd`:`pwd`"
+
+CONTAINER_CMD="${CONTAINER_ENGINE} run -ti $CWD_FLAG $KOS_PORTS_FOLDER_FLAG $IMAGE_TAG"
+#echo "Container cmd: ${CONTAINER_CMD}"
+
+check_image() {
+    CMD_RESULT=`${CONTAINER_ENGINE} images -q $IMAGE_TAG 2> /dev/null`
+    if [[ -z "$CMD_RESULT" ]]; then
+        echo "Could not find dreamcast-rs image! Please build or pull the latest image using this tool (build-image/pull-image commands)."
+        exit 1
+    fi
+}
+
+## Helper script for invoking commands in the podman image for dreamcast-rs
+case "$1" in
+    "compile-ports" )
+        check_image
+        ${CONTAINER_CMD} bash -lic "/opt/toolchains/dc/rust/kos-ports/utils/build-all.sh"
+        ;;
+    "build-image" )
+        BUILD_EXT_ARGS=
+        if [[ "$CONTAINER_ENGINE" == "podman" ]]; then
+            BUILD_EXT_ARGS="--format docker"
+        fi
+        echo "Attempting to build dreamcast-rs image..."
+        ${CONTAINER_ENGINE} build $BUILD_EXT_ARGS -t $IMAGE_TAG -f Dockerfile
+        ;;
+    "pull-image" )
+        ${CONTAINER_ENGINE} pull $IMAGE_TAG
+        ;;
+    * )
+        check_image
+        BASH_CMD=$@
+        ${CONTAINER_CMD} bash -lic "cd `pwd`; exec $BASH_CMD" 
+        ;;
+esac
