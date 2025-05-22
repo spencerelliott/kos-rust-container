@@ -5,6 +5,7 @@
 
 # The name of the image to compile or pull
 IMAGE_TAG="dreamcast-rs/dreamcast-rs"
+CONTAINER_NAME="dreamcast-rs-container"
 
 # Choose from podman or docker
 CONTAINER_ENGINE=podman
@@ -32,6 +33,23 @@ check_image() {
 
 ## Helper script for invoking commands in the podman image for dreamcast-rs
 case "$1" in
+    "devenv" )
+        if ${CONTAINER_ENGINE} inspect "$CONTAINER_NAME" > /dev/null 2>&1; then
+            echo "$CONTAINER_NAME already exists..."
+        else
+            echo "Creating $CONTAINER_NAME container..."
+            ${CONTAINER_ENGINE} container create -ti --name $CONTAINER_NAME $KOS_PORTS_FOLDER_FLAG -v $HOME:$HOME $IMAGE_TAG bash
+        fi
+
+        if $(${CONTAINER_ENGINE} inspect -f '{{.State.Status}}' "$CONTAINER_NAME" | grep -q "running"); then
+            echo "$CONTAINER_NAME is already running. Attaching..."
+            ${CONTAINER_ENGINE} attach $CONTAINER_NAME
+        else
+            echo "Starting $CONTAINER_NAME and attaching..."
+            ${CONTAINER_ENGINE} start $CONTAINER_NAME
+            ${CONTAINER_ENGINE} attach $CONTAINER_NAME
+        fi
+        ;;
     "compile-ports" )
         check_image
         ${CONTAINER_CMD} bash -lic "/opt/toolchains/dc/rust/kos-ports/utils/build-all.sh"
@@ -46,6 +64,9 @@ case "$1" in
         ;;
     "pull-image" )
         ${CONTAINER_ENGINE} pull $IMAGE_TAG
+        ;;
+    "rust-analyzer" )
+        ${CONTAINER_ENGINE} run -i $CWD_FLAG $KOS_PORTS_FOLDER_FLAG $IMAGE_TAG bash -lic "rust-analyzer"
         ;;
     * )
         check_image
